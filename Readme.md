@@ -30,4 +30,27 @@ go build -o sandbox .
 ./sandbox /path/to/your/project
 ```
 
+### Install globally (run from anywhere)
+
+1. Build the binary to `~/go/bin`:
+```shell
+cd packages/go
+go build -o ~/go/bin/sandbox .
+```
+
+2. Add `~/go/bin` to your `$PATH` (one-time setup). Add this line to `~/.zshrc`:
+```shell
+export PATH="$PATH:$HOME/go/bin"
+```
+
+3. Reload your shell:
+```shell
+source ~/.zshrc
+```
+
+4. Now you can run `sandbox` from anywhere:
+```shell
+sandbox /path/to/your/project
+```
+
 The tool expects the `GITHUB_TOKEN` environment variable to be set and the `agent` container image to be built (see above).
