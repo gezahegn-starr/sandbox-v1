@@ -51,6 +51,12 @@ RUN useradd -m -s /bin/bash -G sudo agent \
     && echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/agent \
     && chmod 0440 /etc/sudoers.d/agent
 
+# Install Go
+RUN curl -fsSL "https://go.dev/dl/go1.26.0.linux-arm64.tar.gz" -o /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:$PATH"
+
 # Install GitHub Copilot CLI globally
 RUN npm install -g @github/copilot@${COPILOT_VERSION}
 
