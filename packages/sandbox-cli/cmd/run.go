@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -87,8 +88,7 @@ func runRun(_ *cobra.Command, args []string) error {
 func findContainer(name string) (*Container, error) {
 	out, err := exec.Command(containerBin(), "ls", "--all", "--format", "json").CombinedOutput()
 	if err != nil {
-		debugLog("container ls failed: %v", err)
-		return nil, nil
+		return nil, fmt.Errorf("listing containers: %w\n%s", err, out)
 	}
 
 	var containers []Container
@@ -104,7 +104,8 @@ func findContainer(name string) (*Container, error) {
 	return nil, nil
 }
 
-// attachContainer stops a running container (if needed) then starts it with an attached session.
+// attachContainer stops a running container (if needed) then execs into it,
+// replacing the current process entirely so Go is no longer in the signal/IO path.
 func attachContainer(name, currentStatus string) error {
 	if currentStatus == "running" {
 		debugLog("stopping running container before reattach: %s", name)
@@ -114,19 +115,17 @@ func attachContainer(name, currentStatus string) error {
 		}
 	}
 
-	debugLog("attaching to container: %s", name)
-	defer saveAndRestoreTerminal()()
-	c := exec.Command(containerBin(), "start", "-a", "-i", name)
-	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	defer forwardSignals(c)()
+	binary, err := exec.LookPath(containerBin())
+	if err != nil {
+		return fmt.Errorf("finding container binary: %w", err)
+	}
 
-	if err := c.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
-		}
+	args := []string{containerBin(), "start", "-a", "-i", name}
+	debugLog("execve: %v", args)
+	// Replace this process with the container binary. From here Go is gone —
+	// signals, terminal control, and exit codes are all owned by the container.
+	if err := syscall.Exec(binary, args, os.Environ()); err != nil {
 		return fmt.Errorf("attaching to sandbox: %w", err)
 	}
-	return nil
+	return nil // unreachable
 }
