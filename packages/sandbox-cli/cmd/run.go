@@ -18,7 +18,7 @@ var runCmd = &cobra.Command{
 If a sandbox for the project already exists it is reused (restarted if stopped).
 Otherwise a new sandbox is created, configured with a Copilot config, and started.
 An interactive session is attached so the agent runs in the foreground.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.RangeArgs(0, 1),
 	RunE: runRun,
 }
 
@@ -27,6 +27,24 @@ func init() {
 }
 
 func runRun(_ *cobra.Command, args []string) error {
+	// No argument: pick from existing sandboxes interactively.
+	if len(args) == 0 {
+		name, err := pickSandbox("Select a sandbox to run")
+		if err != nil {
+			return err
+		}
+		existing, err := findContainer(name)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "Reusing existing sandbox: %s\n", name)
+		status := ""
+		if existing != nil {
+			status = existing.Status
+		}
+		return attachContainer(name, status)
+	}
+
 	absPath, err := filepath.Abs(args[0])
 	if err != nil {
 		return fmt.Errorf("resolving workspace path: %w", err)

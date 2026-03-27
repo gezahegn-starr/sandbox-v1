@@ -15,7 +15,7 @@ var execCmd = &cobra.Command{
 
 Example:
   sandbox exec copilot-myproject -- ls /home/agent/workspace`,
-	Args:               cobra.MinimumNArgs(2),
+	Args:               cobra.ArbitraryArgs,
 	RunE:               runExec,
 	DisableFlagParsing: true,
 }
@@ -25,17 +25,32 @@ func init() {
 }
 
 func runExec(_ *cobra.Command, args []string) error {
-	// args[0] = sandbox name/id, rest = command (strip leading "--" if present)
-	sandboxID := args[0]
-	cmdArgs := args[1:]
-	if len(cmdArgs) > 0 && cmdArgs[0] == "--" {
-		cmdArgs = cmdArgs[1:]
-	}
-	if len(cmdArgs) == 0 {
-		return fmt.Errorf("no command specified")
+	var sandboxID string
+	var cmdArgs []string
+
+	if len(args) == 0 {
+		var err error
+		sandboxID, err = pickSandbox("Select a sandbox to exec into")
+		if err != nil {
+			return err
+		}
+
+		// Default to bash
+		cmdArgs = []string{"bash"}
+	} else {
+		sandboxID = args[0]
+		cmdArgs = args[1:]
+
+		// strip leading "--" separator
+		if len(cmdArgs) > 0 && cmdArgs[0] == "--" {
+			cmdArgs = cmdArgs[1:]
+		}
+		if len(cmdArgs) == 0 {
+			return fmt.Errorf("no command specified")
+		}
 	}
 
-	execArgs := append([]string{"exec", sandboxID}, cmdArgs...)
+	execArgs := append([]string{"exec", "-it", sandboxID}, cmdArgs...)
 	debugLog("exec: container %v", execArgs)
 
 	c := exec.Command(containerBin(), execArgs...)

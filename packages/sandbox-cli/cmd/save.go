@@ -15,7 +15,7 @@ var saveCmd = &cobra.Command{
 
 Example:
   sandbox save copilot-myproject my-agent-template`,
-	Args: cobra.ExactArgs(2),
+	Args: cobra.RangeArgs(0, 2),
 	RunE: runSave,
 }
 
@@ -24,8 +24,22 @@ func init() {
 }
 
 func runSave(_ *cobra.Command, args []string) error {
-	sandboxID := args[0]
-	imageName := args[1]
+	var sandboxID, imageName string
+
+	if len(args) == 0 {
+		var err error
+		sandboxID, err = pickSandbox("Select a sandbox to save")
+		if err != nil {
+			return err
+		}
+	} else {
+		sandboxID = args[0]
+	}
+
+	if len(args) < 2 {
+		return fmt.Errorf("image name required: sandbox save %s IMAGE_NAME", sandboxID)
+	}
+	imageName = args[1]
 
 	debugLog("committing %s as image %s", sandboxID, imageName)
 

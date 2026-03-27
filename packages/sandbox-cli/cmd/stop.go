@@ -11,7 +11,7 @@ import (
 var stopCmd = &cobra.Command{
 	Use:   "stop SANDBOX [SANDBOX...]",
 	Short: "Stop one or more sandboxes without removing them",
-	Args:  cobra.MinimumNArgs(1),
+	Args:  cobra.ArbitraryArgs,
 	RunE:  runStop,
 }
 
@@ -20,6 +20,14 @@ func init() {
 }
 
 func runStop(_ *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		name, err := pickSandbox("Select a sandbox to stop")
+		if err != nil {
+			return err
+		}
+		args = []string{name}
+	}
+
 	var firstErr error
 	for _, id := range args {
 		debugLog("stopping %s", id)

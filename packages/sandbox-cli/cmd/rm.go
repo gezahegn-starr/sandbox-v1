@@ -14,7 +14,7 @@ var rmCmd = &cobra.Command{
 	Long: `Remove one or more sandboxes.
 
 Use --force to stop and remove running sandboxes.`,
-	Args: cobra.MinimumNArgs(1),
+	Args: cobra.ArbitraryArgs,
 	RunE: runRm,
 }
 
@@ -26,6 +26,14 @@ func init() {
 }
 
 func runRm(_ *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		name, err := pickSandbox("Select a sandbox to remove")
+		if err != nil {
+			return err
+		}
+		args = []string{name}
+	}
+
 	var firstErr error
 	for _, id := range args {
 		if rmForce {
