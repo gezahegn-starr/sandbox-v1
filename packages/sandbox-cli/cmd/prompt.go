@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"golang.org/x/term"
 )
 
 // listSandboxes returns all copilot-* sandbox containers.
@@ -68,4 +70,21 @@ func pickSandbox(title string) (string, error) {
 		return "", err
 	}
 	return selected, nil
+}
+
+// saveAndRestoreTerminal saves the current terminal state and returns a restore
+// function. Call it with defer before running any interactive container process
+// so the terminal is always restored even if the process crashes or panics.
+//
+//	defer saveAndRestoreTerminal()()
+func saveAndRestoreTerminal() func() {
+	fd := int(os.Stdin.Fd())
+	state, err := term.GetState(fd)
+	if err != nil {
+		// Not a TTY or unsupported — nothing to restore.
+		return func() {}
+	}
+	return func() {
+		_ = term.Restore(fd, state)
+	}
 }

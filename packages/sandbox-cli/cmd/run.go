@@ -115,10 +115,12 @@ func attachContainer(name, currentStatus string) error {
 	}
 
 	debugLog("attaching to container: %s", name)
+	defer saveAndRestoreTerminal()()
 	c := exec.Command(containerBin(), "start", "-a", "-i", name)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+	defer forwardSignals(c)()
 
 	if err := c.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

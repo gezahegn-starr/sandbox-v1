@@ -53,10 +53,12 @@ func runExec(_ *cobra.Command, args []string) error {
 	execArgs := append([]string{"exec", "-it", sandboxID}, cmdArgs...)
 	debugLog("exec: container %v", execArgs)
 
+	defer saveAndRestoreTerminal()()
 	c := exec.Command(containerBin(), execArgs...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+	defer forwardSignals(c)()
 
 	if err := c.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
