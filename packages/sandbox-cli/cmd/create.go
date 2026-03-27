@@ -10,6 +10,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// hostSkillsMount returns a -v flag to mount the host's ~/.copilot/skills directory
+// into the container as read-only staging, or an empty string if it doesn't exist.
+func hostSkillsMount() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	hostDir := filepath.Join(home, ".copilot", "skills")
+	if _, err := os.Stat(hostDir); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s:/home/agent/.copilot-host-skills:ro", hostDir)
+}
+
 var createCmd = &cobra.Command{
 	Use:   "create [OPTIONS] [WORKSPACE_PATH]",
 	Short: "Create a sandbox for an agent",
@@ -62,6 +76,9 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%s:/home/agent/workspace", absPath))
 		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%s:%s", absPath, absPath))
 	}
+	if mount := hostSkillsMount(); mount != "" {
+		cmdArgs = append(cmdArgs, "-v", mount)
+	}
 	if createCPUs > 0 {
 		cmdArgs = append(cmdArgs, "--cpus", fmt.Sprintf("%d", createCPUs))
 	}
@@ -80,12 +97,6 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating sandbox: %w", err)
 	}
 
-	if absPath != "" {
-		if err := writeCopilotConfig(name, absPath); err != nil {
-			return err
-		}
-	}
-
 	fmt.Fprintf(os.Stderr, "Created sandbox: %s\n", name)
 	return nil
 }
@@ -97,35 +108,3 @@ func sandboxName(absPath string) string {
 	return fmt.Sprintf("copilot-%s", project)
 }
 
-// writeCopilotConfig starts the container temporarily, writes the config, then stops it.
-func writeCopilotConfig(containerID, absPath string) error {
-	// Start temporarily so we can exec into it
-	debugLog("starting container to write config: %s", containerID)
-	startCmd := exec.Command(containerBin(), "start", containerID)
-	if out, err := startCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("starting sandbox to write config: %w\n%s", err, out)
-	}
-
-	content := fmt.Sprintf(`{
-  "banner": "never",
-  "trusted_folders": ["/home/agent/workspace", "%s"]
-}`, absPath)
-
-	configScript := fmt.Sprintf(
-		`mkdir -p /home/agent/.copilot && cat > /home/agent/.copilot/config.json << 'SANDBOXEOF'
-%s
-SANDBOXEOF`, content)
-
-	execCmd := exec.Command(containerBin(), "exec", containerID, "sh", "-c", configScript)
-	if out, err := execCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("writing copilot config: %w\n%s", err, out)
-	}
-
-	debugLog("stopping container after config write: %s", containerID)
-	stopCmd := exec.Command(containerBin(), "stop", containerID)
-	if out, err := stopCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("stopping sandbox after config write: %w\n%s", err, out)
-	}
-
-	return nil
-}

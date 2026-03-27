@@ -64,19 +64,19 @@ func runRun(_ *cobra.Command, args []string) error {
 	// Create new sandbox
 	fmt.Fprintf(os.Stderr, "Creating sandbox: %s\n", name)
 
+	hostMount := ""
+	if m := hostSkillsMount(); m != "" {
+		hostMount = " -v " + m
+	}
 	cmdStr := fmt.Sprintf(
-		"container create -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s -v %s:/home/agent/workspace -v %s:%s --name %s -i -t agent",
-		absPath, absPath, absPath, absPath, name,
+		"container create -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s -v %s:/home/agent/workspace -v %s:%s%s --name %s -i -t agent",
+		absPath, absPath, absPath, absPath, hostMount, name,
 	)
 	debugLog("exec: sh -c %q", cmdStr)
 
 	createCmd := exec.Command("sh", "-c", cmdStr)
 	if out, err := createCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("creating sandbox: %w\n%s", err, out)
-	}
-
-	if err := writeCopilotConfig(name, absPath); err != nil {
-		return err
 	}
 
 	// Start and attach
