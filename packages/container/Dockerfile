@@ -57,8 +57,8 @@ RUN curl -fsSL "https://go.dev/dl/go1.26.0.linux-arm64.tar.gz" -o /tmp/go.tar.gz
     && rm /tmp/go.tar.gz
 ENV PATH="/usr/local/go/bin:$PATH"
 
-# Install GitHub Copilot CLI globally
-RUN npm install -g @github/copilot@${COPILOT_VERSION}
+# Install GitHub Copilot CLI via official installer
+RUN curl -fsSL https://gh.io/copilot-install | bash
 
 # Set up user environment
 USER agent

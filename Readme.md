@@ -1,16 +1,40 @@
 # GitHub Copilot CLI Container Sandbox
 
-## Build the container:
+## Build the container
+
+### Base image
 ```shell
-container build --tag agent --file Dockerfile .
+docker build --tag agent --file packages/container/Dockerfile packages/container
 ```
 
-## Run the container:
+### Feature images
+
+Feature Dockerfiles extend the base image with additional tooling. Build the base first, then any feature image you need.
+
+| Dockerfile | Tag | What it adds |
+|---|---|---|
+| `Dockerfile.mise` | `agent:mise` | [mise](https://mise.jdx.dev) polyglot runtime manager |
+
 ```shell
-container run -e GITHUB_TOKEN=${GITHUB_TOKEN} -v ~/path/to/project:/home/agent/workspace -it agent
+# Build the mise feature image
+docker build --tag agent:mise --file packages/container/Dockerfile.mise packages/container
 ```
 
-## Go CLI (`packages/go`)
+Adding a new feature is as simple as creating a new `Dockerfile.<feature>` in `packages/container/` that starts with `FROM agent`.
+
+## Run the container
+
+Use the `sandbox` CLI (see below) to create and run sandboxes. To use a feature image, pass `--image`:
+
+```shell
+# Default (agent image)
+sandbox run /path/to/your/project
+
+# With a feature image
+sandbox run --image agent:mise /path/to/your/project
+```
+
+## `sandbox` CLI (`packages/sandbox-cli`)
 
 A CLI tool that manages the lifecycle of a Copilot agent container for a given project directory. It will:
 
@@ -21,20 +45,20 @@ A CLI tool that manages the lifecycle of a Copilot agent container for a given p
 
 ### Build
 ```shell
-cd packages/go
+cd packages/sandbox-cli
 go build -o sandbox .
 ```
 
 ### Usage
 ```shell
-./sandbox /path/to/your/project
+./sandbox run /path/to/your/project
 ```
 
 ### Install globally (run from anywhere)
 
 1. Build the binary to `~/go/bin`:
 ```shell
-cd packages/go
+cd packages/sandbox-cli
 go build -o ~/go/bin/sandbox .
 ```
 
@@ -50,7 +74,7 @@ source ~/.zshrc
 
 4. Now you can run `sandbox` from anywhere:
 ```shell
-sandbox /path/to/your/project
+sandbox run /path/to/your/project
 ```
 
 The tool expects the `GITHUB_TOKEN` environment variable to be set and the `agent` container image to be built (see above).

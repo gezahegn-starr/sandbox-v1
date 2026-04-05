@@ -1,0 +1,20 @@
+# Feature image: adds Playwright (with Chromium) on top of the base agent image.
+# Build the base first:
+#   docker build --tag agent --file Dockerfile .
+# Then build this image:
+#   docker build --tag agent:playwright-cli --file Dockerfile.playwright-cli .
+
+FROM agent:mise
+
+USER agent
+
+# Install Playwright and download Chromium browser
+RUN npm install -g playwright @playwright/cli@latest \
+    && npx playwright install chromium
+
+RUN cd /home/agent && playwright-cli install --skills
+# # Install OS-level browser dependencies via Playwright's built-in helper
+# USER root
+RUN npx playwright install-deps chromium
+USER agent
+

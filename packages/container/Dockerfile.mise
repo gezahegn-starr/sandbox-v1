@@ -1,0 +1,32 @@
+# Feature image: adds mise (polyglot runtime manager) on top of the base agent image.
+# Build the base first:
+#   docker build --tag agent --file Dockerfile .
+# Then build this image:
+#   docker build --tag agent:mise --file Dockerfile.mise .
+
+FROM agent
+
+USER root
+
+# Install mise system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gpg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install mise via official install script
+RUN curl -fsSL https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh
+
+USER agent
+
+# Activate mise in the agent shell
+RUN echo 'eval "$(mise activate bash)"' >> /home/agent/.bashrc
+
+# Trust the workspace directory so mise picks up .mise.toml / .tool-versions files
+RUN mise trust /home/agent/workspace 2>/dev/null || true
+
+# Wrapper entrypoint: runs `mise install` if a .mise.toml or .tool-versions file
+# is present in the workspace, then hands off to the base entrypoint.
+COPY --chown=agent:agent mise-entrypoint.sh /home/agent/mise-entrypoint.sh
+RUN chmod +x /home/agent/mise-entrypoint.sh
+
+ENTRYPOINT ["/home/agent/mise-entrypoint.sh"]

@@ -23,8 +23,13 @@ An interactive session is attached so the agent runs in the foreground.`,
 	RunE: runRun,
 }
 
+var runImage    string
+var runLogLevel string
+
 func init() {
 	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().StringVar(&runImage, "image", "agent", "Container image to use when creating a new sandbox")
+	runCmd.Flags().StringVar(&runLogLevel, "log-level", "debug", "Copilot log level inside the sandbox (none, error, warning, info, debug, all)")
 }
 
 func runRun(_ *cobra.Command, args []string) error {
@@ -69,9 +74,13 @@ func runRun(_ *cobra.Command, args []string) error {
 	if m := hostSkillsMount(); m != "" {
 		hostMount = " -v " + m
 	}
+	logLevelEnv := ""
+	if runLogLevel != "" {
+		logLevelEnv = fmt.Sprintf(" -e COPILOT_LOG_LEVEL=%s", runLogLevel)
+	}
 	cmdStr := fmt.Sprintf(
-		"container create -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s -v %s:/home/agent/workspace -v %s:%s%s --name %s -i -t agent",
-		absPath, absPath, absPath, absPath, hostMount, name,
+		"container create --init --memory 2048m -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s%s -v %s:/home/agent/workspace -v %s:%s%s --name %s -i -t %s",
+		absPath, logLevelEnv, absPath, absPath, absPath, hostMount, name, runImage,
 	)
 	debugLog("exec: sh -c %q", cmdStr)
 

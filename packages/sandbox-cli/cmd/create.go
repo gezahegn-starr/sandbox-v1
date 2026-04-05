@@ -35,10 +35,11 @@ a Copilot config is written. The sandbox is named copilot-<project> by default.`
 }
 
 var (
-	createName   string
-	createImage  string
-	createCPUs   int
-	createMemory int
+	createName     string
+	createImage    string
+	createCPUs     int
+	createMemory   int
+	createLogLevel string
 )
 
 func init() {
@@ -46,7 +47,8 @@ func init() {
 	createCmd.Flags().StringVar(&createName, "name", "", "Sandbox name (default: copilot-<workspace dir>)")
 	createCmd.Flags().StringVar(&createImage, "image", "agent", "Container image to use")
 	createCmd.Flags().IntVar(&createCPUs, "cpus", 0, "Number of CPUs (0 = use container default)")
-	createCmd.Flags().IntVar(&createMemory, "memory", 0, "Memory in MB (0 = use container default)")
+	createCmd.Flags().IntVar(&createMemory, "memory", 2048, "Memory in MB (copilot needs at least 2 GB)")
+	createCmd.Flags().StringVar(&createLogLevel, "log-level", "debug", "Copilot log level inside the sandbox (none, error, warning, info, debug, all)")
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
@@ -69,12 +71,15 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	cmdArgs := []string{"create"}
+	cmdArgs := []string{"create", "--init"}
 	cmdArgs = append(cmdArgs, "-e", "GITHUB_TOKEN=${GITHUB_TOKEN}")
 	if absPath != "" {
 		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("WORKSPACE_PATH=%s", absPath))
 		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%s:/home/agent/workspace", absPath))
 		cmdArgs = append(cmdArgs, "-v", fmt.Sprintf("%s:%s", absPath, absPath))
+	}
+	if createLogLevel != "" {
+		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("COPILOT_LOG_LEVEL=%s", createLogLevel))
 	}
 	if mount := hostSkillsMount(); mount != "" {
 		cmdArgs = append(cmdArgs, "-v", mount)
