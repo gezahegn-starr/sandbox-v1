@@ -74,13 +74,17 @@ func runRun(_ *cobra.Command, args []string) error {
 	if m := hostSkillsMount(); m != "" {
 		hostMount = " -v " + m
 	}
+	stateMount := ""
+	if m := copilotStateMount(name); m != "" {
+		stateMount = " -v " + m
+	}
 	logLevelEnv := ""
 	if runLogLevel != "" {
 		logLevelEnv = fmt.Sprintf(" -e COPILOT_LOG_LEVEL=%s", runLogLevel)
 	}
 	cmdStr := fmt.Sprintf(
-		"container create --init --memory 2048m -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s%s -v %s:/home/agent/workspace -v %s:%s%s --name %s -i -t %s",
-		absPath, logLevelEnv, absPath, absPath, absPath, hostMount, name, runImage,
+		"container create --init --memory 2048m -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s%s -v %s:/home/agent/workspace -v %s:%s%s%s --name %s -i -t %s",
+		absPath, logLevelEnv, absPath, absPath, absPath, stateMount, hostMount, name, runImage,
 	)
 	debugLog("exec: sh -c %q", cmdStr)
 

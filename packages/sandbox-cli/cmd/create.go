@@ -24,6 +24,22 @@ func hostSkillsMount() string {
 	return fmt.Sprintf("%s:/home/agent/.copilot-host-skills:ro", hostDir)
 }
 
+// copilotStateMount returns a -v flag that mounts a per-sandbox host directory
+// (~/.sandbox/<name>/) to /home/agent/.copilot inside the container,
+// so copilot session state (config, logs, conversation history) survives container removal.
+// The host directory is created if it does not yet exist.
+func copilotStateMount(name string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	hostDir := filepath.Join(home, ".sandbox", name)
+	if err := os.MkdirAll(hostDir, 0o755); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s:/home/agent/.copilot", hostDir)
+}
+
 var createCmd = &cobra.Command{
 	Use:   "create [OPTIONS] [WORKSPACE_PATH]",
 	Short: "Create a sandbox for an agent",
@@ -80,6 +96,9 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 	if createLogLevel != "" {
 		cmdArgs = append(cmdArgs, "-e", fmt.Sprintf("COPILOT_LOG_LEVEL=%s", createLogLevel))
+	}
+	if mount := copilotStateMount(name); mount != "" {
+		cmdArgs = append(cmdArgs, "-v", mount)
 	}
 	if mount := hostSkillsMount(); mount != "" {
 		cmdArgs = append(cmdArgs, "-v", mount)
