@@ -83,8 +83,8 @@ func runRun(_ *cobra.Command, args []string) error {
 		logLevelEnv = fmt.Sprintf(" -e COPILOT_LOG_LEVEL=%s", runLogLevel)
 	}
 	cmdStr := fmt.Sprintf(
-		"container create --init --memory 2048m -e GITHUB_TOKEN=${GITHUB_TOKEN} -e WORKSPACE_PATH=%s%s -v %s:/home/agent/workspace -v %s:%s%s%s --name %s -i -t %s",
-		absPath, logLevelEnv, absPath, absPath, absPath, stateMount, hostMount, name, runImage,
+		"container create --init --memory 2048m -e GITHUB_TOKEN=${GITHUB_TOKEN}%s -e WORKSPACE_PATH=%s%s -v %s:/home/agent/workspace -v %s:%s%s%s --name %s -i -t %s",
+		prReviewTokenEnv(), absPath, logLevelEnv, absPath, absPath, absPath, stateMount, hostMount, name, runImage,
 	)
 	debugLog("exec: sh -c %q", cmdStr)
 
@@ -97,7 +97,16 @@ func runRun(_ *cobra.Command, args []string) error {
 	return attachContainer(name, "")
 }
 
-// findContainer looks up a container by name using `container ls --all --format json`.
+// prReviewTokenEnv returns a `-e PR_REVIEW_TOKEN=...` fragment for the container
+// create command if PR_REVIEW_TOKEN is set on the host, otherwise empty string.
+// PR_REVIEW_TOKEN is a separate token with full repo scope used by the pr-review
+// CLI for GitHub API calls and git push on private repositories.
+func prReviewTokenEnv() string {
+	if os.Getenv("PR_REVIEW_TOKEN") != "" {
+		return " -e PR_REVIEW_TOKEN=${PR_REVIEW_TOKEN}"
+	}
+	return ""
+}
 func findContainer(name string) (*Container, error) {
 	out, err := exec.Command(containerBin(), "ls", "--all", "--format", "json").CombinedOutput()
 	if err != nil {

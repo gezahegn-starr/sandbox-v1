@@ -14,13 +14,67 @@ Feature Dockerfiles extend the base image with additional tooling. Build the bas
 | Dockerfile | Tag | What it adds |
 |---|---|---|
 | `Dockerfile.mise` | `agent:mise` | [mise](https://mise.jdx.dev) polyglot runtime manager |
+| `packages/pr-review/Dockerfile` | `agent:pr-review` | Automated PR review responder (`pr-review` CLI) |
 
 ```shell
 # Build the mise feature image
 docker build --tag agent:mise --file packages/container/Dockerfile.mise packages/container
+
+# Build the pr-review feature image
+docker build --tag agent:pr-review --file packages/pr-review/Dockerfile packages/pr-review
 ```
 
 Adding a new feature is as simple as creating a new `Dockerfile.<feature>` in `packages/container/` that starts with `FROM agent`.
+
+## `pr-review` CLI (`packages/pr-review`)
+
+A CLI tool that automatically responds to pull request review comments using GitHub Copilot. It will:
+
+1. **Fetch** all open review comments on a PR via the `gh` CLI
+2. **Classify** each comment with Copilot — auto-fixable code change vs. needs human judgment
+3. **Fix** actionable comments by invoking Copilot in headless mode and applying the changes to disk
+4. **Validate** each fix by running the repo's existing test/lint commands
+5. **Push** successful fixes to the PR branch
+6. **Report** any comments requiring human review in a markdown file with GitHub links
+
+### Build
+
+```shell
+cd packages/pr-review
+go build -o pr-review .
+```
+
+### Usage
+
+Run inside a container (recommended, using the `agent:pr-review` image):
+
+```shell
+sandbox run --image agent:pr-review /path/to/your/project
+# then inside the container:
+pr-review run
+```
+
+Or run directly (requires `gh` CLI authenticated and Copilot CLI available):
+
+```shell
+pr-review run --repo owner/repo --pr 42
+```
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--repo` | auto-detected | Repository in `owner/repo` format |
+| `--pr` | auto-detected | PR number (uses current branch if omitted) |
+| `--dry-run` | false | Classify and plan without applying changes or pushing |
+| `--output` | `pr-review-report.md` | Path for the human-review markdown report |
+| `--debug` | false | Verbose debug logging |
+
+### Output
+
+- Changes that pass validation are committed and pushed automatically.
+- A `pr-review-report.md` file is written listing every comment that needs human attention, with direct GitHub links and context.
+- Exit code `0` = all comments resolved; exit code `1` = some comments need human review.
 
 ## Run the container
 
