@@ -24,6 +24,8 @@ RUN echo 'eval "$(mise activate bash)"' >> /home/agent/.bashrc
 # Trust the workspace directory so mise picks up .mise.toml / .tool-versions files
 RUN mise trust /home/agent/workspace 2>/dev/null || true
 
+ENV PATH="/home/agent/.local/share/mise/shims:${PATH}"
+
 # Wrapper entrypoint: runs `mise install` if a .mise.toml or .tool-versions file
 # is present in the workspace, then hands off to the base entrypoint.
 COPY --chown=agent:agent mise-entrypoint.sh /home/agent/mise-entrypoint.sh
